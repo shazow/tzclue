@@ -32,25 +32,16 @@ func main() {
 
 	// Set DesktopId
 	if call := client.Call("org.freedesktop.DBus.Properties.Set", 0, "org.freedesktop.GeoClue2.Client", "DesktopId", dbus.MakeVariant(appName)); call.Err != nil {
-		exit(2, "call failed: Properties.Set: %s\n", call.Err)
+		exit(2, "call failed: Properties.Set(DesktopId): %s\n", call.Err)
 	}
 
-	// Set DesktopId
-	//if call := client.Call("org.freedesktop.DBus.Properties.Set", 0, "org.freedesktop.GeoClue2.Client", "DistanceThreshold", dbus.MakeVariant(50000)); call.Err != nil {
-	//	exit(2, "call failed: Properties.Set: %s\n", call.Err)
-	//}
+	// Set DistanceThreshold
+	if call := client.Call("org.freedesktop.DBus.Properties.Set", 0, "org.freedesktop.GeoClue2.Client", "DistanceThreshold", dbus.MakeVariant(uint32(50000))); call.Err != nil {
+		exit(2, "call failed: Properties.Set(DistanceThreshold): %s\n", call.Err)
+	}
 
-	// Subscribe to signal
-	/*
-		const signalInterface = "org.freedesktop.GeoClue2.Client.LocationUpdated"
-		if call := client.Call("org.freedesktop.DBus.AddMatch", 0, "type='signal',path='"+clientPath+"',interface='"+signalInterface+"'"); call.Err != nil {
-			exit(2, "call failed: AddMatch: %s", call.Err)
-		}
-	*/
-
-	if call := conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0,
-		"type='signal',path='/org/freedesktop/DBus',interface='org.freedesktop.DBus',sender='org.freedesktop.DBus'"); call.Err != nil {
-		exit(2, "call failed: AddMatch: %s", call.Err)
+	if call := conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, "type='signal',interface='org.freedesktop.GeoClue2.Client',member='LocationUpdated'"); call.Err != nil {
+		exit(2, "call failed: AddMatch: %s\n", call.Err)
 	}
 
 	sig := make(chan *dbus.Signal, 10)
@@ -59,31 +50,31 @@ func main() {
 	log.Print("Subscribed to Location signals.")
 
 	// Start client
-	/*
-		ret_v = g_dbus_proxy_call_sync(geoclue_client,
-		"Start",
-		NULL,
-		G_DBUS_CALL_FLAGS_NONE,
-		-1, NULL, &error);
-	*/
-	if call := client.Call("org.freedesktop.GeoClue2.Client.Start", 0); call.Err != nil {
-		exit(2, "call failed: Client.Start: %s", call.Err)
+	// FIXME: Should we be expecting a reply?
+	if call := client.Call("org.freedesktop.GeoClue2.Client.Start", dbus.FlagNoReplyExpected); call.Err != nil {
+		exit(2, "call failed: Client.Start: %s\n", call.Err)
 	}
+
+	defer func() {
+		client.Call("org.freedesktop.GeoClue2.Client.Stop", dbus.FlagNoReplyExpected)
+	}()
 
 	log.Print("Client started")
 
 	log.Print("Waiting for Location...")
 	for v := range sig {
 		fmt.Println(v)
+		break
 	}
 
-	var location interface{}
-	err = client.Call("org.freedesktop.GeoClue2.Client.Location", 0).Store(&location)
-	if err != nil {
-		exit(1, "failed to get location: %s\n", err)
-	}
+	/*
+		location, err := client.GetProperty("org.freedesktop.GeoClue2.Client.Location")
+		if err != nil {
+			exit(1, "failed to get location: %s\n", err)
+		}
 
-	log.Printf("Location: %q", location)
+		log.Printf("Location: %v", location.Value())
+	*/
 }
 
 func exit(code int, format string, args ...interface{}) {
