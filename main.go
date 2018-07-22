@@ -35,12 +35,14 @@ func main() {
 		exit(2, "call failed: Properties.Set(DesktopId): %s\n", call.Err)
 	}
 
-	// Set DistanceThreshold
-	if call := client.Call("org.freedesktop.DBus.Properties.Set", 0, "org.freedesktop.GeoClue2.Client", "DistanceThreshold", dbus.MakeVariant(uint32(50000))); call.Err != nil {
-		exit(2, "call failed: Properties.Set(DistanceThreshold): %s\n", call.Err)
-	}
+	/*
+		// Set DistanceThreshold
+		if call := client.Call("org.freedesktop.DBus.Properties.Set", 0, "org.freedesktop.GeoClue2.Client", "DistanceThreshold", dbus.MakeVariant(uint32(50000))); call.Err != nil {
+			exit(2, "call failed: Properties.Set(DistanceThreshold): %s\n", call.Err)
+		}
+	*/
 
-	if call := conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, "type='signal',interface='org.freedesktop.GeoClue2.Client',member='LocationUpdated'"); call.Err != nil {
+	if call := conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, "type='signal',interface='org.freedesktop.GeoClue2.Client',member='Location'"); call.Err != nil {
 		exit(2, "call failed: AddMatch: %s\n", call.Err)
 	}
 
@@ -51,15 +53,16 @@ func main() {
 
 	// Start client
 	// FIXME: Should we be expecting a reply?
-	if call := client.Call("org.freedesktop.GeoClue2.Client.Start", dbus.FlagNoReplyExpected); call.Err != nil {
-		exit(2, "call failed: Client.Start: %s\n", call.Err)
+	if call := client.Call("org.freedesktop.GeoClue2.Client.Start", 0); call.Err != nil {
+		exit(2, "call failed: Client.Start: %s\n%v\n", call.Err, call)
 	}
 
 	defer func() {
 		client.Call("org.freedesktop.GeoClue2.Client.Stop", dbus.FlagNoReplyExpected)
 	}()
 
-	log.Print("Client started")
+	isActive, err := client.GetProperty("org.freedesktop.GeoClue2.Client.Active")
+	log.Print("Client started", isActive, err)
 
 	log.Print("Waiting for Location...")
 	for v := range sig {
